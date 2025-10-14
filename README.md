@@ -37,7 +37,7 @@ Snowflake Data Warehouse
 1. **Extract:** Azure SQL → Parquet files in Blob Storage
 2. **Stage:** Parquet → Snowflake STAGE tables (with audit columns)
 3. **Transform:** STAGE → Snowflake DW dimensions
-4. **Load:** Dimensions → Snowflake SALES_FACT
+4. **Load:** Dimensions + STAGE → Snowflake SALES_FACT
 
 ---
 
@@ -60,6 +60,10 @@ Snowflake Data Warehouse
 - `TIME_DIM` - Time dimension (1,440 minutes/day)
 - `CUSTOMER_DIM` - Customer details with SCD Type 2
 - `ARTIST_DIM` - Artist information
+- `ALBUM_DIM` - Album information
+- `GENRE_DIM` - Genre information
+- `INVOICE_DIM` - Invoice header details
+- `INVOICELINE_DIM` - Invoice line item details
 
 **Fact:**
 - `SALES_FACT` - Sales transactions with foreign keys to all dimensions
@@ -74,7 +78,7 @@ Snowflake Data Warehouse
 | Staging Storage | Azure Blob Storage |
 | ETL Orchestration | Azure Data Factory |
 | Target Warehouse | Snowflake |
-| File Format | Parquet |
+| File Format | Apache Parquet |
 | Security | Azure Key Vault |
 
 ---
@@ -85,14 +89,21 @@ Snowflake Data Warehouse
 ├── pipeline/
 │   ├── extract_SQLDB_PL          # Extract from Azure SQL to Parquet
 │   ├── stage_Partquet_PL         # Load Parquet to Snowflake STAGE
-│   ├── load_CUSTOMER_DIM_PL      # Load customer dimension
-│   ├── load_ARTIST_DIM_PL        # Load artist dimension
 │   ├── load_ALBUM_DIM_PL         # Load album dimension
+│   ├── load_ARTIST_DIM_PL        # Load artist dimension
+│   ├── load_CUSTOMER_DIM_PL      # Load customer dimension
+│   ├── load_GENRE_DIM_PL         # Load genre dimension
 │   ├── load_INVOICE_DIM_PL       # Load invoice dimension
+│   ├── load_INVOICELINE_DIM_PL   # Load invoice line dimension
 │   └── load_SALES_FACT_PL        # Load sales fact
 ├── dataflow/
-│   ├── transform_source_parquet  # Parquet transformations
-│   └── df_load_*_DIM             # Dimension data flows
+│   ├── transform_source_parquet  # Parquet to STAGE with audit columns
+│   ├── df_load_ALBUM_DIM         # Album dimension transformation
+│   ├── df_load_ARTIST_DIM        # Artist dimension transformation
+│   ├── df_load_CUSTOMER_DIM      # Customer dimension transformation
+│   ├── df_load_GENRE_DIM         # Genre dimension transformation
+│   ├── df_load_INVOICE_DIM       # Invoice dimension transformation
+│   └── df_load_INVOICELINE_DIM   # Invoice line dimension transformation
 ├── dataset/
 │   ├── chinook_ds                # Azure SQL dataset
 │   ├── chinook_ds_parquet        # Blob Storage dataset
@@ -157,12 +168,13 @@ GRANT ALL PRIVILEGES ON SCHEMA CHINOOK_DB.DW TO ROLE CHINOOK_ROLE;
 ### 5. Run Pipelines (in order)
 1. **`extract_SQLDB_PL`** → Extract Azure SQL to Parquet files
 2. **`stage_Partquet_PL`** → Load Parquet to Snowflake STAGE
-3. **`load_CUSTOMER_DIM_PL`** → Load customer dimension
+3. **`load_ALBUM_DIM_PL`** → Load album dimension
 4. **`load_ARTIST_DIM_PL`** → Load artist dimension
-5. **`load_ALBUM_DIM_PL`** → Load album dimension
-6. **`load_INVOICE_DIM_PL`** → Load invoice dimension
-7. **`load_INVOICELINE_DIM_PL`** → Load invoice line dimension
-8. **`load_SALES_FACT_PL`** → Load sales fact table
+5. **`load_CUSTOMER_DIM_PL`** → Load customer dimension
+6. **`load_GENRE_DIM_PL`** → Load genre dimension
+7. **`load_INVOICE_DIM_PL`** → Load invoice dimension
+8. **`load_INVOICELINE_DIM_PL`** → Load invoice line dimension
+9. **`load_SALES_FACT_PL`** → Load sales fact table
 
 ---
 
@@ -194,8 +206,16 @@ GRANT ALL PRIVILEGES ON SCHEMA CHINOOK_DB.DW TO ROLE CHINOOK_ROLE;
 
 ---
 
-### Pipeline 3-7: Dimension Loads
+### Pipeline 3-8: Dimension Loads
 **Purpose:** Transform STAGE data into dimensional model
+
+**Pipelines:**
+- `load_ALBUM_DIM_PL`
+- `load_ARTIST_DIM_PL`
+- `load_CUSTOMER_DIM_PL`
+- `load_GENRE_DIM_PL`
+- `load_INVOICE_DIM_PL`
+- `load_INVOICELINE_DIM_PL`
 
 **Features:**
 - Generate surrogate keys using Snowflake sequences
@@ -205,7 +225,7 @@ GRANT ALL PRIVILEGES ON SCHEMA CHINOOK_DB.DW TO ROLE CHINOOK_ROLE;
 
 ---
 
-### Pipeline 8: Sales Fact Load (`load_SALES_FACT_PL`)
+### Pipeline 9: Sales Fact Load (`load_SALES_FACT_PL`)
 **Purpose:** Create fact table with aggregated sales data
 
 **Query Logic:**
@@ -244,7 +264,7 @@ WHERE sf.INVOICE_ID IS NULL;
 **Extract Validation:**
 ```sql
 -- Check Azure SQL row counts
-SELECT COUNT(*) FROM chinook.Invoice;
+SELECT COUNT(*) FROM dbo.Invoice;
 
 -- Check Parquet file row counts
 SELECT COUNT(*) FROM STAGE.INVOICE;
@@ -307,3 +327,8 @@ WHERE cd.CUSTOMER_KEY IS NULL;
 - [Azure Blob Storage Documentation](https://learn.microsoft.com/en-us/azure/storage/blobs/)
 - [Azure Data Factory Documentation](https://docs.microsoft.com/en-us/azure/data-factory/)
 - [Snowflake Documentation](https://docs.snowflake.com/)
+
+
+---
+
+⭐ If you found this project helpful, please consider giving it a star!
