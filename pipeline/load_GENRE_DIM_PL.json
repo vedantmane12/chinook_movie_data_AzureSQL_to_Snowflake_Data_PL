@@ -1,0 +1,84 @@
+{
+	"name": "load_GENRE_DIM_PL",
+	"properties": {
+		"activities": [
+			{
+				"name": "df_load_GENRE_DIM",
+				"type": "ExecuteDataFlow",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataflow": {
+						"referenceName": "df_load_GENRE_DIM",
+						"type": "DataFlowReference",
+						"datasetParameters": {
+							"GenreDIM": {
+								"schema_name": {
+									"value": "@pipeline().parameters.stage_schema",
+									"type": "Expression"
+								},
+								"table_name": {
+									"value": "@pipeline().parameters.stage_table",
+									"type": "Expression"
+								}
+							},
+							"sourceGenreDIM": {
+								"schema_name": {
+									"value": "@pipeline().parameters.wh_schema",
+									"type": "Expression"
+								},
+								"table_name": {
+									"value": "@pipeline().parameters.wh_table",
+									"type": "Expression"
+								}
+							},
+							"sinkGenreDIM": {
+								"schema_name": {
+									"value": "@pipeline().parameters.wh_schema",
+									"type": "Expression"
+								},
+								"table_name": {
+									"value": "@pipeline().parameters.wh_table",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					"compute": {
+						"coreCount": 8,
+						"computeType": "General"
+					},
+					"traceLevel": "Fine"
+				}
+			}
+		],
+		"parameters": {
+			"stage_schema": {
+				"type": "String",
+				"defaultValue": "STAGE"
+			},
+			"stage_table": {
+				"type": "String",
+				"defaultValue": "GENRE"
+			},
+			"wh_schema": {
+				"type": "String",
+				"defaultValue": "DW"
+			},
+			"wh_table": {
+				"type": "String",
+				"defaultValue": "GENRE_DIM"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2025-10-13T19:19:07Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

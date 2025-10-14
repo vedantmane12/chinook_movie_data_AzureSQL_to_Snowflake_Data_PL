@@ -1,0 +1,88 @@
+{
+	"name": "load_INVOICE_DIM_PL",
+	"properties": {
+		"activities": [
+			{
+				"name": "df_load_INVOICE_DIM",
+				"type": "ExecuteDataFlow",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataflow": {
+						"referenceName": "df_load_INVOICE_DIM",
+						"type": "DataFlowReference",
+						"datasetParameters": {
+							"InvoiceDIM": {
+								"schema_name": {
+									"value": "@pipeline().parameters.stage_schema",
+									"type": "Expression"
+								},
+								"table_name": {
+									"value": "@pipeline().parameters.stage_table",
+									"type": "Expression"
+								}
+							},
+							"sourceInvoiceDIM": {
+								"schema_name": {
+									"value": "@pipeline().parameters.wh_schema",
+									"type": "Expression"
+								},
+								"table_name": {
+									"value": "@pipeline().parameters.wh_table",
+									"type": "Expression"
+								}
+							},
+							"sinkInvoiceDIM": {
+								"schema_name": {
+									"value": "@pipeline().parameters.wh_schema",
+									"type": "Expression"
+								},
+								"table_name": {
+									"value": "@pipeline().parameters.wh_table",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					"compute": {
+						"coreCount": 8,
+						"computeType": "General"
+					},
+					"traceLevel": "Fine"
+				}
+			}
+		],
+		"parameters": {
+			"stage_schema": {
+				"type": "string",
+				"defaultValue": "STAGE"
+			},
+			"stage_table": {
+				"type": "string",
+				"defaultValue": "INVOICE"
+			},
+			"wh_schema": {
+				"type": "string",
+				"defaultValue": "DW"
+			},
+			"wh_table": {
+				"type": "string",
+				"defaultValue": "INVOICE_DIM"
+			},
+			"wh_date_table": {
+				"type": "String",
+				"defaultValue": "DATE_DIM"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2025-10-13T22:00:11Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

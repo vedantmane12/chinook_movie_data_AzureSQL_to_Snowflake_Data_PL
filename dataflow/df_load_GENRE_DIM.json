@@ -1,0 +1,93 @@
+{
+	"name": "df_load_GENRE_DIM",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "chinook_ds_snowflake",
+						"type": "DatasetReference"
+					},
+					"name": "GenreDIM"
+				},
+				{
+					"dataset": {
+						"referenceName": "chinook_ds_snowflake",
+						"type": "DatasetReference"
+					},
+					"name": "sourceGenreDIM"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "chinook_ds_snowflake",
+						"type": "DatasetReference"
+					},
+					"name": "sinkGenreDIM"
+				}
+			],
+			"transformations": [
+				{
+					"name": "joinSourceTgt"
+				},
+				{
+					"name": "GenreKey"
+				},
+				{
+					"name": "RowChanges"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          GenreId as decimal(38,0),",
+				"          Name as string,",
+				"          Created_By as string,",
+				"          Created_Dt as date",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'table') ~> GenreDIM",
+				"source(output(",
+				"          GENRE_KEY as decimal(10,0),",
+				"          GENRE_ID as decimal(10,0),",
+				"          NAME as string,",
+				"          SOURCE_ID as string,",
+				"          DATE_TO_WAREHOUSE as timestamp",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'table') ~> sourceGenreDIM",
+				"GenreDIM, sourceGenreDIM join(GenreId == GENRE_ID,",
+				"     joinType:'left',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> joinSourceTgt",
+				"joinSourceTgt keyGenerate(output(Genre_Key as long),",
+				"     startAt: 1L,",
+				"     stepValue: 1L) ~> GenreKey",
+				"GenreKey alterRow(updateIf(GenreId==GENRE_ID&&GenreDIM@Name!=sourceGenreDIM@NAME),",
+				"     insertIf(iifNull(GENRE_ID,0,GENRE_ID)==0)) ~> RowChanges",
+				"RowChanges sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:true,",
+				"     upsertable:false,",
+				"     keys:['GENRE_ID'],",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     stageInsert: true,",
+				"     mapColumn(",
+				"          GENRE_KEY = GenreKey@Genre_Key,",
+				"          GENRE_ID = GenreId,",
+				"          NAME = GenreDIM@Name,",
+				"          SOURCE_ID = Created_By,",
+				"          DATE_TO_WAREHOUSE = Created_Dt",
+				"     )) ~> sinkGenreDIM"
+			]
+		}
+	}
+}

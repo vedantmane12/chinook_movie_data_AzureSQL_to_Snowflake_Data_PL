@@ -1,0 +1,84 @@
+{
+	"name": "load_INVOICELINE_DIM_PL",
+	"properties": {
+		"activities": [
+			{
+				"name": "df_load_INVOICELINE_DIM",
+				"type": "ExecuteDataFlow",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataflow": {
+						"referenceName": "df_load_INVOICELINE_DIM",
+						"type": "DataFlowReference",
+						"datasetParameters": {
+							"InvoiceLineDIM": {
+								"schema_name": {
+									"value": "@pipeline().parameters.stage_schema",
+									"type": "Expression"
+								},
+								"table_name": {
+									"value": "@pipeline().parameters.stage_table",
+									"type": "Expression"
+								}
+							},
+							"sourceInvoiceLineDIM": {
+								"schema_name": {
+									"value": "@pipeline().parameters.wh_schema",
+									"type": "Expression"
+								},
+								"table_name": {
+									"value": "@pipeline().parameters.wh_table",
+									"type": "Expression"
+								}
+							},
+							"sinkInvoiceLimeDIM": {
+								"schema_name": {
+									"value": "@pipeline().parameters.wh_schema",
+									"type": "Expression"
+								},
+								"table_name": {
+									"value": "@pipeline().parameters.wh_table",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					"compute": {
+						"coreCount": 8,
+						"computeType": "General"
+					},
+					"traceLevel": "Fine"
+				}
+			}
+		],
+		"parameters": {
+			"stage_schema": {
+				"type": "String",
+				"defaultValue": "STAGE"
+			},
+			"stage_table": {
+				"type": "String",
+				"defaultValue": "INVOICELINE"
+			},
+			"wh_schema": {
+				"type": "String",
+				"defaultValue": "DW"
+			},
+			"wh_table": {
+				"type": "String",
+				"defaultValue": "INVOICELINE_DIM"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2025-10-13T21:38:35Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

@@ -1,0 +1,9 @@
+{
+	"name": "adfdemo-damg7370",
+	"location": "westus2",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "6114fec7-6add-4d02-aed0-509be5917800",
+		"tenantId": "a8eec281-aaa3-4dae-ac9b-9a398b9215e7"
+	}
+}

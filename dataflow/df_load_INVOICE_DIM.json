@@ -1,0 +1,114 @@
+{
+	"name": "df_load_INVOICE_DIM",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "chinook_ds_snowflake",
+						"type": "DatasetReference"
+					},
+					"name": "InvoiceDIM"
+				},
+				{
+					"dataset": {
+						"referenceName": "chinook_ds_snowflake",
+						"type": "DatasetReference"
+					},
+					"name": "sourceInvoiceDIM"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "chinook_ds_snowflake",
+						"type": "DatasetReference"
+					},
+					"name": "sinkInvoiceDIM"
+				}
+			],
+			"transformations": [
+				{
+					"name": "joinSourceTgt"
+				},
+				{
+					"name": "InvoiceKey"
+				},
+				{
+					"name": "RowChanges"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          InvoiceId as decimal(38,0),",
+				"          CustomerId as decimal(38,0),",
+				"          InvoiceDate as timestamp,",
+				"          BillingAddress as string,",
+				"          BillingCity as string,",
+				"          BillingState as string,",
+				"          BillingCountry as string,",
+				"          BillingPostalCode as string,",
+				"          Total as decimal(10,2),",
+				"          Created_By as string,",
+				"          Created_Dt as date",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'table') ~> InvoiceDIM",
+				"source(output(",
+				"          INVOICE_KEY as decimal(10,0),",
+				"          INVOICE_ID as decimal(10,0),",
+				"          CUSTOMER_ID as decimal(10,0),",
+				"          SALE_DATE as date,",
+				"          BILLING_ADDRESS as string,",
+				"          BILLING_CITY as string,",
+				"          BILLING_STATE as string,",
+				"          BILLING_COUNTRY as string,",
+				"          BILLING_POSTAL_CODE as string,",
+				"          TOTAL as decimal(10,2),",
+				"          SOURCE_ID as string,",
+				"          DATE_TO_WAREHOUSE as timestamp",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'table') ~> sourceInvoiceDIM",
+				"InvoiceDIM, sourceInvoiceDIM join(InvoiceId == INVOICE_ID,",
+				"     joinType:'left',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> joinSourceTgt",
+				"joinSourceTgt keyGenerate(output(Invoice_Key as long),",
+				"     startAt: 1L,",
+				"     stepValue: 1L) ~> InvoiceKey",
+				"InvoiceKey alterRow(updateIf(InvoiceId==InvoiceId&&CustomerId==CustomerId&&BillingAddress!=BILLING_ADDRESS&&BillingCity!=BILLING_CITY&&BillingState!=BILLING_STATE&&BillingCountry!=BILLING_COUNTRY&&BillingPostalCode!=BILLING_POSTAL_CODE&&InvoiceDIM@Total!=sourceInvoiceDIM@TOTAL),",
+				"     insertIf(iifNull(INVOICE_ID,0,INVOICE_ID)==0)) ~> RowChanges",
+				"RowChanges sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:true,",
+				"     upsertable:false,",
+				"     keys:['INVOICE_ID'],",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     stageInsert: true,",
+				"     mapColumn(",
+				"          INVOICE_KEY = InvoiceKey@Invoice_Key,",
+				"          INVOICE_ID = InvoiceId,",
+				"          CUSTOMER_ID = CustomerId,",
+				"          SALE_DATE = InvoiceDate,",
+				"          BILLING_ADDRESS = BillingAddress,",
+				"          BILLING_CITY = BillingCity,",
+				"          BILLING_STATE = BillingState,",
+				"          BILLING_COUNTRY = BillingCountry,",
+				"          BILLING_POSTAL_CODE = BillingPostalCode,",
+				"          TOTAL = InvoiceDIM@Total,",
+				"          SOURCE_ID = Created_By,",
+				"          DATE_TO_WAREHOUSE = Created_Dt",
+				"     )) ~> sinkInvoiceDIM"
+			]
+		}
+	}
+}

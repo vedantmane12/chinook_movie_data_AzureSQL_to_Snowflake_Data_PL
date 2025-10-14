@@ -1,0 +1,49 @@
+{
+	"name": "transform_source_parquet",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "chinook_ds_parquet",
+						"type": "DatasetReference"
+					},
+					"name": "SourceParquet"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "chinook_ds_snowflake",
+						"type": "DatasetReference"
+					},
+					"name": "SnowflakeSink"
+				}
+			],
+			"transformations": [
+				{
+					"name": "AddAuditColumns"
+				}
+			],
+			"scriptLines": [
+				"source(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'parquet') ~> SourceParquet",
+				"SourceParquet derive(Created_By = 'ADF_PIPELINE',",
+				"          Created_Dt = currentDate()) ~> AddAuditColumns",
+				"AddAuditColumns sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     stageInsert: true) ~> SnowflakeSink"
+			]
+		}
+	}
+}

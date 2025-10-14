@@ -1,0 +1,45 @@
+{
+	"name": "ls_azuresqldb",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"parameters": {
+			"servername": {
+				"type": "string",
+				"defaultValue": "dada-bi.database.windows.net"
+			},
+			"databasename": {
+				"type": "string",
+				"defaultValue": "DAMG7370FALL2025"
+			},
+			"username": {
+				"type": "string",
+				"defaultValue": "damg7370"
+			},
+			"secretname": {
+				"type": "string",
+				"defaultValue": "damg7370-chinook-credentials"
+			}
+		},
+		"annotations": [],
+		"type": "AzureSqlDatabase",
+		"typeProperties": {
+			"server": "@{linkedService().servername}",
+			"database": "@{linkedService().databasename}",
+			"encrypt": "mandatory",
+			"trustServerCertificate": false,
+			"authenticationType": "SQL",
+			"userName": "@{linkedService().username}",
+			"password": {
+				"type": "AzureKeyVaultSecret",
+				"store": {
+					"referenceName": "ls_azurekeyvault",
+					"type": "LinkedServiceReference"
+				},
+				"secretName": {
+					"value": "@linkedService().secretname",
+					"type": "Expression"
+				}
+			}
+		}
+	}
+}

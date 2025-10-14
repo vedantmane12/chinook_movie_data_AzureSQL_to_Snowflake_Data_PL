@@ -1,0 +1,139 @@
+{
+	"name": "df_load_CUSTOMER_DIM",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "chinook_ds_snowflake",
+						"type": "DatasetReference"
+					},
+					"name": "CustomerStage"
+				},
+				{
+					"dataset": {
+						"referenceName": "chinook_ds_snowflake",
+						"type": "DatasetReference"
+					},
+					"name": "sourceCustomerDIM"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "chinook_ds_snowflake",
+						"type": "DatasetReference"
+					},
+					"name": "sinkCustomerDIM"
+				}
+			],
+			"transformations": [
+				{
+					"name": "joinSourceTgt"
+				},
+				{
+					"name": "SourceHashActiveFlag"
+				},
+				{
+					"name": "RowChanges"
+				},
+				{
+					"name": "CustomerKey"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          CustomerId as decimal(38,0),",
+				"          FirstName as string,",
+				"          LastName as string,",
+				"          Company as string,",
+				"          Address as string,",
+				"          City as string,",
+				"          State as string,",
+				"          Country as string,",
+				"          PostalCode as string,",
+				"          Phone as string,",
+				"          Fax as string,",
+				"          Email as string,",
+				"          SupportRepId as decimal(38,0),",
+				"          Created_By as string,",
+				"          Created_Dt as date",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'table') ~> CustomerStage",
+				"source(output(",
+				"          CUSTOMER_KEY as decimal(10,0),",
+				"          CUSTOMER_ID as decimal(10,0),",
+				"          FIRST_NAME as string,",
+				"          LAST_NAME as string,",
+				"          COMPANY_NAME as string,",
+				"          CITY as string,",
+				"          STATE as string,",
+				"          COUNTRY as string,",
+				"          ZIP_CODE as string,",
+				"          EMPLOYEE_ID as decimal(10,0),",
+				"          IS_ACTIVE as string,",
+				"          HASH_VALUE as string,",
+				"          SOURCE_ID as string,",
+				"          DATE_TO_WAREHOUSE as timestamp",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'table') ~> sourceCustomerDIM",
+				"CustomerStage, sourceCustomerDIM join(CustomerId == CUSTOMER_ID,",
+				"     joinType:'left',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> joinSourceTgt",
+				"CustomerKey derive(hash = md5(CustomerId, ",
+				"    FirstName, ",
+				"    LastName, ",
+				"    Company, ",
+				"    Address, ",
+				"    CustomerStage@City, ",
+				"    CustomerStage@State, ",
+				"    CustomerStage@Country, ",
+				"    PostalCode, ",
+				"    Phone, ",
+				"    Fax, ",
+				"    Email",
+				"),",
+				"          is_active = 'Y') ~> SourceHashActiveFlag",
+				"SourceHashActiveFlag alterRow(updateIf(CustomerId==CUSTOMER_ID&&hash!=HASH_VALUE),",
+				"     insertIf(iifNull(CUSTOMER_ID,0,CUSTOMER_ID)==0)) ~> RowChanges",
+				"joinSourceTgt keyGenerate(output(Customer_Key as long),",
+				"     startAt: 1L,",
+				"     stepValue: 1L) ~> CustomerKey",
+				"RowChanges sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:true,",
+				"     upsertable:false,",
+				"     keys:['CUSTOMER_ID'],",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     stageInsert: true,",
+				"     mapColumn(",
+				"          CUSTOMER_KEY = CustomerKey@Customer_Key,",
+				"          CUSTOMER_ID = CustomerId,",
+				"          FIRST_NAME = FirstName,",
+				"          LAST_NAME = LastName,",
+				"          COMPANY_NAME = Company,",
+				"          CITY = CustomerStage@City,",
+				"          STATE = CustomerStage@State,",
+				"          COUNTRY = CustomerStage@Country,",
+				"          ZIP_CODE = PostalCode,",
+				"          EMPLOYEE_ID = SupportRepId,",
+				"          SOURCE_ID = Created_By,",
+				"          DATE_TO_WAREHOUSE = Created_Dt,",
+				"          IS_ACTIVE = SourceHashActiveFlag@is_active,",
+				"          HASH_VALUE = hash",
+				"     )) ~> sinkCustomerDIM"
+			]
+		}
+	}
+}
