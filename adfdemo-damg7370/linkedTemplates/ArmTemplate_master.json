@@ -1,0 +1,125 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "adfdemo-damg7370"
+		},
+		"ls_azureblobstorage_properties_typeProperties_serviceEndpoint": {
+			"type": "string",
+			"defaultValue": "https://storagedamg7370.blob.core.windows.net/"
+		},
+		"ls_azureblobstorage_sas_sasUri": {
+			"type": "secureString",
+			"metadata": "Secure string for 'sasUri' of 'ls_azureblobstorage_sas'"
+		},
+		"ls_azurekeyvault_properties_typeProperties_baseUrl": {
+			"type": "string",
+			"defaultValue": "https://kvault-damg7370.vault.azure.net/"
+		},
+		"ls_azuresqldb_properties_typeProperties_server": {
+			"type": "string",
+			"defaultValue": "@{linkedService().servername}"
+		},
+		"ls_azuresqldb_properties_typeProperties_database": {
+			"type": "string",
+			"defaultValue": "@{linkedService().databasename}"
+		},
+		"ls_azuresqldb_properties_typeProperties_userName": {
+			"type": "string",
+			"defaultValue": "@{linkedService().username}"
+		},
+		"ls_snowflake_properties_typeProperties_database": {
+			"type": "string",
+			"defaultValue": "CHINOOK_DB"
+		},
+		"ls_snowflake_properties_typeProperties_role": {
+			"type": "string",
+			"defaultValue": "CHINOOK_ROLE"
+		},
+		"ls_snowflake_properties_typeProperties_host": {
+			"type": "string",
+			"defaultValue": "MIMFSEY-HZ22766.snowflakecomputing.com"
+		},
+		"containerUri": {
+			"type": "string",
+			"metadata": "URI to storage account containing linked ARM templates"
+		},
+		"containerSasToken": {
+			"type": "string",
+			"metadata": "Sas token to storage account containing linked ARM templates"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "adfdemo-damg7370_ArmTemplate_0",
+			"type": "Microsoft.Resources/deployments",
+			"apiVersion": "2024-03-01",
+			"properties": {
+				"mode": "incremental",
+				"templateLink": {
+					"uri": "[concat(parameters('containerUri'), '/ArmTemplate_0.json', parameters('containerSasToken'))]",
+					"contentVersion": "1.0.0.0"
+				},
+				"parameters": {
+					"factoryName": {
+						"value": "[parameters('factoryName')]"
+					},
+					"ls_azureblobstorage_properties_typeProperties_serviceEndpoint": {
+						"value": "[parameters('ls_azureblobstorage_properties_typeProperties_serviceEndpoint')]"
+					},
+					"ls_azureblobstorage_sas_sasUri": {
+						"value": "[parameters('ls_azureblobstorage_sas_sasUri')]"
+					},
+					"ls_azurekeyvault_properties_typeProperties_baseUrl": {
+						"value": "[parameters('ls_azurekeyvault_properties_typeProperties_baseUrl')]"
+					},
+					"ls_azuresqldb_properties_typeProperties_server": {
+						"value": "[parameters('ls_azuresqldb_properties_typeProperties_server')]"
+					},
+					"ls_azuresqldb_properties_typeProperties_database": {
+						"value": "[parameters('ls_azuresqldb_properties_typeProperties_database')]"
+					},
+					"ls_azuresqldb_properties_typeProperties_userName": {
+						"value": "[parameters('ls_azuresqldb_properties_typeProperties_userName')]"
+					},
+					"ls_snowflake_properties_typeProperties_database": {
+						"value": "[parameters('ls_snowflake_properties_typeProperties_database')]"
+					},
+					"ls_snowflake_properties_typeProperties_role": {
+						"value": "[parameters('ls_snowflake_properties_typeProperties_role')]"
+					},
+					"ls_snowflake_properties_typeProperties_host": {
+						"value": "[parameters('ls_snowflake_properties_typeProperties_host')]"
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "adfdemo-damg7370_ArmTemplate_1",
+			"type": "Microsoft.Resources/deployments",
+			"apiVersion": "2024-03-01",
+			"properties": {
+				"mode": "incremental",
+				"templateLink": {
+					"uri": "[concat(parameters('containerUri'), '/ArmTemplate_1.json', parameters('containerSasToken'))]",
+					"contentVersion": "1.0.0.0"
+				},
+				"parameters": {
+					"factoryName": {
+						"value": "[parameters('factoryName')]"
+					}
+				}
+			},
+			"dependsOn": [
+				"[resourceId('Microsoft.Resources/deployments', 'adfdemo-damg7370_ArmTemplate_0')]"
+			]
+		}
+	]
+}

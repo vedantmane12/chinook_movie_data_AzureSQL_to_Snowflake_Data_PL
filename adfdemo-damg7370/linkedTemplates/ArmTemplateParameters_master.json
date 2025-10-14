@@ -1,0 +1,42 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"value": "adfdemo-damg7370"
+		},
+		"ls_azureblobstorage_properties_typeProperties_serviceEndpoint": {
+			"value": "https://storagedamg7370.blob.core.windows.net/"
+		},
+		"ls_azureblobstorage_sas_sasUri": {
+			"value": ""
+		},
+		"ls_azurekeyvault_properties_typeProperties_baseUrl": {
+			"value": "https://kvault-damg7370.vault.azure.net/"
+		},
+		"ls_azuresqldb_properties_typeProperties_server": {
+			"value": "@{linkedService().servername}"
+		},
+		"ls_azuresqldb_properties_typeProperties_database": {
+			"value": "@{linkedService().databasename}"
+		},
+		"ls_azuresqldb_properties_typeProperties_userName": {
+			"value": "@{linkedService().username}"
+		},
+		"ls_snowflake_properties_typeProperties_database": {
+			"value": "CHINOOK_DB"
+		},
+		"ls_snowflake_properties_typeProperties_role": {
+			"value": "CHINOOK_ROLE"
+		},
+		"ls_snowflake_properties_typeProperties_host": {
+			"value": "MIMFSEY-HZ22766.snowflakecomputing.com"
+		},
+		"containerUri": {
+			"value": ""
+		},
+		"containerSasToken": {
+			"value": ""
+		}
+	}
+}

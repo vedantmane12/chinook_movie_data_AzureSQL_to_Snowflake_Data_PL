@@ -1,0 +1,1859 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "adfdemo-damg7370"
+		},
+		"ls_azureblobstorage_properties_typeProperties_serviceEndpoint": {
+			"type": "string",
+			"defaultValue": "https://storagedamg7370.blob.core.windows.net/"
+		},
+		"ls_azureblobstorage_sas_sasUri": {
+			"type": "secureString",
+			"metadata": "Secure string for 'sasUri' of 'ls_azureblobstorage_sas'"
+		},
+		"ls_azurekeyvault_properties_typeProperties_baseUrl": {
+			"type": "string",
+			"defaultValue": "https://kvault-damg7370.vault.azure.net/"
+		},
+		"ls_azuresqldb_properties_typeProperties_server": {
+			"type": "string",
+			"defaultValue": "@{linkedService().servername}"
+		},
+		"ls_azuresqldb_properties_typeProperties_database": {
+			"type": "string",
+			"defaultValue": "@{linkedService().databasename}"
+		},
+		"ls_azuresqldb_properties_typeProperties_userName": {
+			"type": "string",
+			"defaultValue": "@{linkedService().username}"
+		},
+		"ls_snowflake_properties_typeProperties_database": {
+			"type": "string",
+			"defaultValue": "CHINOOK_DB"
+		},
+		"ls_snowflake_properties_typeProperties_role": {
+			"type": "string",
+			"defaultValue": "CHINOOK_ROLE"
+		},
+		"ls_snowflake_properties_typeProperties_host": {
+			"type": "string",
+			"defaultValue": "MIMFSEY-HZ22766.snowflakecomputing.com"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/extract_SQLDB_PL')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "ForEachSourceTable",
+						"type": "ForEach",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@pipeline().parameters.table_names_array",
+								"type": "Expression"
+							},
+							"batchCount": 3,
+							"activities": [
+								{
+									"name": "sql_2_parquet",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.00:10:00",
+										"retry": 2,
+										"retryIntervalInSeconds": 60,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "AzureSqlSource",
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
+										},
+										"sink": {
+											"type": "ParquetSink",
+											"storeSettings": {
+												"type": "AzureBlobStorageWriteSettings"
+											},
+											"formatSettings": {
+												"type": "ParquetWriteSettings"
+											}
+										},
+										"enableStaging": false,
+										"validateDataConsistency": true,
+										"translator": {
+											"type": "TabularTranslator",
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "chinook_ds",
+											"type": "DatasetReference",
+											"parameters": {
+												"schema_name": "chinook",
+												"table_name": {
+													"value": "@item()",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "chinook_ds_parquet",
+											"type": "DatasetReference",
+											"parameters": {
+												"container_name": "stagedata",
+												"directory_name": "chinook",
+												"file_name": {
+													"value": "@concat(\n    item(),\n    '.parquet'\n)",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"table_names_array": {
+						"type": "array",
+						"defaultValue": [
+							"Album",
+							"Artist",
+							"Customer",
+							"Employee",
+							"Genre",
+							"Invoice",
+							"InvoiceLine",
+							"MediaType",
+							"Playlist",
+							"PlaylistTrack",
+							"Track"
+						]
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2025-10-11T04:07:09Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/chinook_ds')]",
+				"[concat(variables('factoryId'), '/datasets/chinook_ds_parquet')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/load_ALBUM_DIM_PL')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "df_load_ALBUM_DIM",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "df_load_ALBUM_DIM",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"AlbumDIM": {
+										"schema_name": {
+											"value": "@pipeline().parameters.stage_schema",
+											"type": "Expression"
+										},
+										"table_name": {
+											"value": "@pipeline().parameters.stage_table",
+											"type": "Expression"
+										}
+									},
+									"sourceAlbumDIM": {
+										"schema_name": {
+											"value": "@pipeline().parameters.wh_schema",
+											"type": "Expression"
+										},
+										"table_name": {
+											"value": "@pipeline().parameters.wh_table",
+											"type": "Expression"
+										}
+									},
+									"sinkAlbumDIM": {
+										"schema_name": {
+											"value": "@pipeline().parameters.wh_schema",
+											"type": "Expression"
+										},
+										"table_name": {
+											"value": "@pipeline().parameters.wh_table",
+											"type": "Expression"
+										}
+									}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"stage_schema": {
+						"type": "String",
+						"defaultValue": "STAGE"
+					},
+					"stage_table": {
+						"type": "String",
+						"defaultValue": "ALBUM"
+					},
+					"wh_schema": {
+						"type": "string",
+						"defaultValue": "DW"
+					},
+					"wh_table": {
+						"type": "string",
+						"defaultValue": "ALBUM_DIM"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2025-10-13T18:37:29Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/df_load_ALBUM_DIM')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/load_ARTIST_DIM_PL')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "df_load_ARTIST_DIM",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "df_load_ARTIST_DIM",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"ArtistStage": {
+										"schema_name": {
+											"value": "@pipeline().parameters.stage_schema",
+											"type": "Expression"
+										},
+										"table_name": {
+											"value": "@pipeline().parameters.stage_table",
+											"type": "Expression"
+										}
+									},
+									"sourceArtistDIM": {
+										"schema_name": {
+											"value": "@pipeline().parameters.wh_schema",
+											"type": "Expression"
+										},
+										"table_name": {
+											"value": "@pipeline().parameters.wh_table",
+											"type": "Expression"
+										}
+									},
+									"sinkArtistDIM": {
+										"schema_name": {
+											"value": "@pipeline().parameters.wh_schema",
+											"type": "Expression"
+										},
+										"table_name": {
+											"value": "@pipeline().parameters.wh_table",
+											"type": "Expression"
+										}
+									}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"stage_schema": {
+						"type": "String",
+						"defaultValue": "STAGE"
+					},
+					"stage_table": {
+						"type": "String",
+						"defaultValue": "ARTIST"
+					},
+					"wh_schema": {
+						"type": "String",
+						"defaultValue": "DW"
+					},
+					"wh_table": {
+						"type": "String",
+						"defaultValue": "ARTIST_DIM"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2025-10-13T18:37:58Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/df_load_ARTIST_DIM')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/load_CUSTOMER_DIM_PL')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "df_load_CUSTOMER_DIM",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.00:10:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "df_load_CUSTOMER_DIM",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"CustomerStage": {
+										"schema_name": {
+											"value": "@pipeline().parameters.stage_schema",
+											"type": "Expression"
+										},
+										"table_name": {
+											"value": "@pipeline().parameters.stage_table",
+											"type": "Expression"
+										}
+									},
+									"sourceCustomerDIM": {
+										"schema_name": {
+											"value": "@pipeline().parameters.wh_schema",
+											"type": "Expression"
+										},
+										"table_name": {
+											"value": "@pipeline().parameters.wh_table",
+											"type": "Expression"
+										}
+									},
+									"sinkCustomerDIM": {
+										"schema_name": {
+											"value": "@pipeline().parameters.wh_schema",
+											"type": "Expression"
+										},
+										"table_name": {
+											"value": "@pipeline().parameters.wh_table",
+											"type": "Expression"
+										}
+									}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"stage_schema": {
+						"type": "String",
+						"defaultValue": "STAGE"
+					},
+					"stage_table": {
+						"type": "String",
+						"defaultValue": "CUSTOMER"
+					},
+					"wh_schema": {
+						"type": "String",
+						"defaultValue": "DW"
+					},
+					"wh_table": {
+						"type": "String",
+						"defaultValue": "CUSTOMER_DIM"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2025-10-13T00:57:59Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/df_load_CUSTOMER_DIM')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/load_GENRE_DIM_PL')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "df_load_GENRE_DIM",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "df_load_GENRE_DIM",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"GenreDIM": {
+										"schema_name": {
+											"value": "@pipeline().parameters.stage_schema",
+											"type": "Expression"
+										},
+										"table_name": {
+											"value": "@pipeline().parameters.stage_table",
+											"type": "Expression"
+										}
+									},
+									"sourceGenreDIM": {
+										"schema_name": {
+											"value": "@pipeline().parameters.wh_schema",
+											"type": "Expression"
+										},
+										"table_name": {
+											"value": "@pipeline().parameters.wh_table",
+											"type": "Expression"
+										}
+									},
+									"sinkGenreDIM": {
+										"schema_name": {
+											"value": "@pipeline().parameters.wh_schema",
+											"type": "Expression"
+										},
+										"table_name": {
+											"value": "@pipeline().parameters.wh_table",
+											"type": "Expression"
+										}
+									}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"stage_schema": {
+						"type": "String",
+						"defaultValue": "STAGE"
+					},
+					"stage_table": {
+						"type": "String",
+						"defaultValue": "GENRE"
+					},
+					"wh_schema": {
+						"type": "String",
+						"defaultValue": "DW"
+					},
+					"wh_table": {
+						"type": "String",
+						"defaultValue": "GENRE_DIM"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2025-10-13T19:19:07Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/df_load_GENRE_DIM')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/load_INVOICELINE_DIM_PL')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "df_load_INVOICELINE_DIM",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "df_load_INVOICELINE_DIM",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"InvoiceLineDIM": {
+										"schema_name": {
+											"value": "@pipeline().parameters.stage_schema",
+											"type": "Expression"
+										},
+										"table_name": {
+											"value": "@pipeline().parameters.stage_table",
+											"type": "Expression"
+										}
+									},
+									"sourceInvoiceLineDIM": {
+										"schema_name": {
+											"value": "@pipeline().parameters.wh_schema",
+											"type": "Expression"
+										},
+										"table_name": {
+											"value": "@pipeline().parameters.wh_table",
+											"type": "Expression"
+										}
+									},
+									"sinkInvoiceLimeDIM": {
+										"schema_name": {
+											"value": "@pipeline().parameters.wh_schema",
+											"type": "Expression"
+										},
+										"table_name": {
+											"value": "@pipeline().parameters.wh_table",
+											"type": "Expression"
+										}
+									}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"stage_schema": {
+						"type": "String",
+						"defaultValue": "STAGE"
+					},
+					"stage_table": {
+						"type": "String",
+						"defaultValue": "INVOICELINE"
+					},
+					"wh_schema": {
+						"type": "String",
+						"defaultValue": "DW"
+					},
+					"wh_table": {
+						"type": "String",
+						"defaultValue": "INVOICELINE_DIM"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2025-10-13T21:38:35Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/df_load_INVOICELINE_DIM')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/load_INVOICE_DIM_PL')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "df_load_INVOICE_DIM",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "df_load_INVOICE_DIM",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"InvoiceDIM": {
+										"schema_name": {
+											"value": "@pipeline().parameters.stage_schema",
+											"type": "Expression"
+										},
+										"table_name": {
+											"value": "@pipeline().parameters.stage_table",
+											"type": "Expression"
+										}
+									},
+									"sourceInvoiceDIM": {
+										"schema_name": {
+											"value": "@pipeline().parameters.wh_schema",
+											"type": "Expression"
+										},
+										"table_name": {
+											"value": "@pipeline().parameters.wh_table",
+											"type": "Expression"
+										}
+									},
+									"sinkInvoiceDIM": {
+										"schema_name": {
+											"value": "@pipeline().parameters.wh_schema",
+											"type": "Expression"
+										},
+										"table_name": {
+											"value": "@pipeline().parameters.wh_table",
+											"type": "Expression"
+										}
+									}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"stage_schema": {
+						"type": "string",
+						"defaultValue": "STAGE"
+					},
+					"stage_table": {
+						"type": "string",
+						"defaultValue": "INVOICE"
+					},
+					"wh_schema": {
+						"type": "string",
+						"defaultValue": "DW"
+					},
+					"wh_table": {
+						"type": "string",
+						"defaultValue": "INVOICE_DIM"
+					},
+					"wh_date_table": {
+						"type": "String",
+						"defaultValue": "DATE_DIM"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2025-10-13T22:00:11Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/df_load_INVOICE_DIM')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/load_SALES_FACT_PL')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "LoadSALESFACT",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.00:10:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SnowflakeV2Source",
+								"query": "WITH aggsales AS (\n    SELECT \n        cd.CUSTOMER_KEY,\n        i.INVOICE_ID AS INVOICE_ID,\n        i.SALE_DATE AS SALE_DATE,\n        SUM(il.QUANTITY * il.UNIT_PRICE) AS TOTAL_SALE_AMT\n    FROM DW.INVOICE_DIM i\n    JOIN DW.INVOICELINE_DIM il ON i.INVOICE_ID = il.INVOICE_ID\n    JOIN DW.CUSTOMER_DIM cd ON cd.CUSTOMER_ID = i.CUSTOMER_ID\n    GROUP BY \n        i.INVOICE_ID,\n        cd.CUSTOMER_KEY,\n        i.SALE_DATE\n)\nSELECT \n    ROW_NUMBER() OVER (ORDER BY INVOICE_ID) AS SALES_KEY,\n    CUSTOMER_KEY,\n    INVOICE_ID,\n    -- SALE_DATE,\n    dd.DATE_KEY AS DATE_DIM_KEY,\n    td.TIME_KEY AS TIME_DIM_KEY,\n    TOTAL_SALE_AMT,\n    'ADF_PIPELINE' AS SOURCE_ID,\n    CURRENT_TIMESTAMP() AS DATE_TO_WAREHOUSE\nFROM aggsales a\nJOIN DW.DATE_DIM dd ON dd.FULL_DATE = DATE(a.SALE_DATE)\nJOIN DW.TIME_DIM td ON td.TIME_24_HR = TO_CHAR(a.SALE_DATE, 'HH24:MI')\nWHERE NOT EXISTS (\n    SELECT 1\n    FROM DW.SALES_FACT sf\n    WHERE sf.INVOICE_ID = a.INVOICE_ID\n)",
+								"exportSettings": {
+									"type": "SnowflakeExportCopyCommand"
+								}
+							},
+							"sink": {
+								"type": "SnowflakeV2Sink",
+								"importSettings": {
+									"type": "SnowflakeImportCopyCommand"
+								}
+							},
+							"enableStaging": true,
+							"stagingSettings": {
+								"linkedServiceName": {
+									"referenceName": "ls_azureblobstorage_sas",
+									"type": "LinkedServiceReference"
+								},
+								"path": "stagedata/chinook"
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "chinook_ds_snowflake",
+								"type": "DatasetReference",
+								"parameters": {
+									"schema_name": "DW",
+									"table_name": "INVOICE_DIM"
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "chinook_ds_snowflake",
+								"type": "DatasetReference",
+								"parameters": {
+									"schema_name": "DW",
+									"table_name": "SALES_FACT"
+								}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2025-10-14T02:58:52Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/chinook_ds_snowflake')]",
+				"[concat(variables('factoryId'), '/linkedServices/ls_azureblobstorage_sas')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/stage_Partquet_PL')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "ForEachSourceParquetFile",
+						"type": "ForEach",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@pipeline().parameters.table_names_array",
+								"type": "Expression"
+							},
+							"batchCount": 1,
+							"activities": [
+								{
+									"name": "df_parquet_to_snowflake_with_audit",
+									"type": "ExecuteDataFlow",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.00:10:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 60,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"dataflow": {
+											"referenceName": "transform_source_parquet",
+											"type": "DataFlowReference",
+											"parameters": {},
+											"datasetParameters": {
+												"SourceParquet": {
+													"container_name": "stagedata",
+													"directory_name": {
+														"value": "@pipeline().parameters.folder_name",
+														"type": "Expression"
+													},
+													"file_name": {
+														"value": "@concat(\n    item(),\n    '.parquet'\n)",
+														"type": "Expression"
+													}
+												},
+												"SnowflakeSink": {
+													"schema_name": "STAGE",
+													"table_name": {
+														"value": "@toUpper(\n    item()\n)",
+														"type": "Expression"
+													}
+												}
+											}
+										},
+										"staging": {},
+										"compute": {
+											"coreCount": 8,
+											"computeType": "General"
+										},
+										"traceLevel": "Fine"
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"folder_name": {
+						"type": "String",
+						"defaultValue": "chinook"
+					},
+					"table_names_array": {
+						"type": "array",
+						"defaultValue": [
+							"Album",
+							"Artist",
+							"Customer",
+							"Genre",
+							"Invoice",
+							"InvoiceLine"
+						]
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2025-10-12T19:47:34Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/transform_source_parquet')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/chinook_ds')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_azuresqldb",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"schema_name": {
+						"type": "string",
+						"defaultValue": "chinook"
+					},
+					"table_name": {
+						"type": "string",
+						"defaultValue": "Customer"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": {
+						"value": "@dataset().schema_name",
+						"type": "Expression"
+					},
+					"table": {
+						"value": "@dataset().table_name",
+						"type": "Expression"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_azuresqldb')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/chinook_ds_parquet')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_azureblobstorage",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"container_name": {
+						"type": "string"
+					},
+					"directory_name": {
+						"type": "string"
+					},
+					"file_name": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "Parquet",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": {
+							"value": "@dataset().file_name",
+							"type": "Expression"
+						},
+						"folderPath": {
+							"value": "@dataset().directory_name",
+							"type": "Expression"
+						},
+						"container": {
+							"value": "@dataset().container_name",
+							"type": "Expression"
+						}
+					},
+					"compressionCodec": "snappy"
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_azureblobstorage')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/chinook_ds_snowflake')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_snowflake",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"schema_name": {
+						"type": "string"
+					},
+					"table_name": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "SnowflakeV2Table",
+				"schema": [],
+				"typeProperties": {
+					"schema": {
+						"value": "@dataset().schema_name",
+						"type": "Expression"
+					},
+					"table": {
+						"value": "@dataset().table_name",
+						"type": "Expression"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_snowflake')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_azureblobstorage')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobStorage",
+				"typeProperties": {
+					"serviceEndpoint": "[parameters('ls_azureblobstorage_properties_typeProperties_serviceEndpoint')]",
+					"accountKind": "StorageV2"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_azureblobstorage_sas')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobStorage",
+				"typeProperties": {
+					"sasUri": "[parameters('ls_azureblobstorage_sas_sasUri')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_azurekeyvault')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureKeyVault",
+				"typeProperties": {
+					"baseUrl": "[parameters('ls_azurekeyvault_properties_typeProperties_baseUrl')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_azuresqldb')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"parameters": {
+					"servername": {
+						"type": "string",
+						"defaultValue": "dada-bi.database.windows.net"
+					},
+					"databasename": {
+						"type": "string",
+						"defaultValue": "DAMG7370FALL2025"
+					},
+					"username": {
+						"type": "string",
+						"defaultValue": "damg7370"
+					},
+					"secretname": {
+						"type": "string",
+						"defaultValue": "damg7370-chinook-credentials"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"server": "[parameters('ls_azuresqldb_properties_typeProperties_server')]",
+					"database": "[parameters('ls_azuresqldb_properties_typeProperties_database')]",
+					"encrypt": "mandatory",
+					"trustServerCertificate": false,
+					"authenticationType": "SQL",
+					"userName": "[parameters('ls_azuresqldb_properties_typeProperties_userName')]",
+					"password": {
+						"type": "AzureKeyVaultSecret",
+						"store": {
+							"referenceName": "ls_azurekeyvault",
+							"type": "LinkedServiceReference"
+						},
+						"secretName": {
+							"value": "@linkedService().secretname",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_azurekeyvault')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_snowflake')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "SnowflakeV2",
+				"typeProperties": {
+					"authenticationType": "Basic",
+					"accountIdentifier": "MIMFSEY-HZ22766",
+					"user": "CHINOOK_USER",
+					"database": "[parameters('ls_snowflake_properties_typeProperties_database')]",
+					"warehouse": "CHINOOK_WH",
+					"role": "[parameters('ls_snowflake_properties_typeProperties_role')]",
+					"host": "[parameters('ls_snowflake_properties_typeProperties_host')]",
+					"password": {
+						"type": "AzureKeyVaultSecret",
+						"store": {
+							"referenceName": "ls_azurekeyvault",
+							"type": "LinkedServiceReference"
+						},
+						"secretName": "chinookuser-snowflake-credentials"
+					}
+				},
+				"version": "1.1"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_azurekeyvault')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/df_load_ALBUM_DIM')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "chinook_ds_snowflake",
+								"type": "DatasetReference"
+							},
+							"name": "AlbumDIM"
+						},
+						{
+							"dataset": {
+								"referenceName": "chinook_ds_snowflake",
+								"type": "DatasetReference"
+							},
+							"name": "sourceAlbumDIM"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "chinook_ds_snowflake",
+								"type": "DatasetReference"
+							},
+							"name": "sinkAlbumDIM"
+						}
+					],
+					"transformations": [
+						{
+							"name": "joinSourceTgt"
+						},
+						{
+							"name": "AlbumKey"
+						},
+						{
+							"name": "RowChanges"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          AlbumId as decimal(38,0),",
+						"          Title as string,",
+						"          ArtistId as decimal(38,0),",
+						"          Created_By as string,",
+						"          Created_Dt as date",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'table') ~> AlbumDIM",
+						"source(output(",
+						"          ALBUM_KEY as decimal(10,0),",
+						"          ALBUM_ID as decimal(10,0),",
+						"          TITLE as string,",
+						"          ARTIST_ID as decimal(10,0),",
+						"          SOURCE_ID as string,",
+						"          DATE_TO_WAREHOUSE as timestamp",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'table') ~> sourceAlbumDIM",
+						"AlbumDIM, sourceAlbumDIM join(AlbumId == ALBUM_ID,",
+						"     joinType:'left',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> joinSourceTgt",
+						"joinSourceTgt keyGenerate(output(Album_Key as long),",
+						"     startAt: 1L,",
+						"     stepValue: 1L) ~> AlbumKey",
+						"AlbumKey alterRow(updateIf(AlbumId==ALBUM_ID&&AlbumDIM@Title!=sourceAlbumDIM@TITLE&&ArtistId!=ARTIST_ID),",
+						"     insertIf(iifNull(ALBUM_ID,0,ALBUM_ID)==0)) ~> RowChanges",
+						"RowChanges sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     deletable:false,",
+						"     insertable:true,",
+						"     updateable:true,",
+						"     upsertable:false,",
+						"     keys:['ALBUM_ID'],",
+						"     format: 'table',",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     stageInsert: true,",
+						"     mapColumn(",
+						"          ALBUM_KEY = AlbumKey@Album_Key,",
+						"          ALBUM_ID = AlbumId,",
+						"          TITLE = AlbumDIM@Title,",
+						"          ARTIST_ID = ArtistId,",
+						"          SOURCE_ID = Created_By,",
+						"          DATE_TO_WAREHOUSE = Created_Dt",
+						"     )) ~> sinkAlbumDIM"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/chinook_ds_snowflake')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/df_load_ARTIST_DIM')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "chinook_ds_snowflake",
+								"type": "DatasetReference"
+							},
+							"name": "ArtistStage"
+						},
+						{
+							"dataset": {
+								"referenceName": "chinook_ds_snowflake",
+								"type": "DatasetReference"
+							},
+							"name": "sourceArtistDIM"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "chinook_ds_snowflake",
+								"type": "DatasetReference"
+							},
+							"name": "sinkArtistDIM"
+						}
+					],
+					"transformations": [
+						{
+							"name": "joinSourceTgt"
+						},
+						{
+							"name": "ArtistKey"
+						},
+						{
+							"name": "RowChanges"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          ArtistId as decimal(38,0),",
+						"          Name as string,",
+						"          Created_By as string,",
+						"          Created_Dt as date",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'table') ~> ArtistStage",
+						"source(output(",
+						"          ARTIST_KEY as decimal(10,0),",
+						"          ARTIST_ID as decimal(10,0),",
+						"          ARTIST_NAME as string,",
+						"          SOURCE_ID as string,",
+						"          DATE_TO_WAREHOUSE as timestamp",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'table') ~> sourceArtistDIM",
+						"ArtistStage, sourceArtistDIM join(ArtistId == ARTIST_ID,",
+						"     joinType:'left',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> joinSourceTgt",
+						"joinSourceTgt keyGenerate(output(Artist_Key as long),",
+						"     startAt: 1L,",
+						"     stepValue: 1L) ~> ArtistKey",
+						"ArtistKey alterRow(updateIf(ArtistId==ARTIST_ID&&Name!=ARTIST_NAME),",
+						"     insertIf(iifNull(ARTIST_ID,0,ARTIST_ID)==0)) ~> RowChanges",
+						"RowChanges sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     deletable:false,",
+						"     insertable:true,",
+						"     updateable:true,",
+						"     upsertable:false,",
+						"     keys:['ARTIST_ID'],",
+						"     format: 'table',",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     stageInsert: true,",
+						"     mapColumn(",
+						"          ARTIST_KEY = ArtistKey@Artist_Key,",
+						"          ARTIST_ID = ArtistId,",
+						"          ARTIST_NAME = Name,",
+						"          SOURCE_ID = Created_By,",
+						"          DATE_TO_WAREHOUSE = Created_Dt",
+						"     )) ~> sinkArtistDIM"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/chinook_ds_snowflake')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/df_load_CUSTOMER_DIM')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "chinook_ds_snowflake",
+								"type": "DatasetReference"
+							},
+							"name": "CustomerStage"
+						},
+						{
+							"dataset": {
+								"referenceName": "chinook_ds_snowflake",
+								"type": "DatasetReference"
+							},
+							"name": "sourceCustomerDIM"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "chinook_ds_snowflake",
+								"type": "DatasetReference"
+							},
+							"name": "sinkCustomerDIM"
+						}
+					],
+					"transformations": [
+						{
+							"name": "joinSourceTgt"
+						},
+						{
+							"name": "SourceHashActiveFlag"
+						},
+						{
+							"name": "RowChanges"
+						},
+						{
+							"name": "CustomerKey"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          CustomerId as decimal(38,0),",
+						"          FirstName as string,",
+						"          LastName as string,",
+						"          Company as string,",
+						"          Address as string,",
+						"          City as string,",
+						"          State as string,",
+						"          Country as string,",
+						"          PostalCode as string,",
+						"          Phone as string,",
+						"          Fax as string,",
+						"          Email as string,",
+						"          SupportRepId as decimal(38,0),",
+						"          Created_By as string,",
+						"          Created_Dt as date",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'table') ~> CustomerStage",
+						"source(output(",
+						"          CUSTOMER_KEY as decimal(10,0),",
+						"          CUSTOMER_ID as decimal(10,0),",
+						"          FIRST_NAME as string,",
+						"          LAST_NAME as string,",
+						"          COMPANY_NAME as string,",
+						"          CITY as string,",
+						"          STATE as string,",
+						"          COUNTRY as string,",
+						"          ZIP_CODE as string,",
+						"          EMPLOYEE_ID as decimal(10,0),",
+						"          IS_ACTIVE as string,",
+						"          HASH_VALUE as string,",
+						"          SOURCE_ID as string,",
+						"          DATE_TO_WAREHOUSE as timestamp",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'table') ~> sourceCustomerDIM",
+						"CustomerStage, sourceCustomerDIM join(CustomerId == CUSTOMER_ID,",
+						"     joinType:'left',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> joinSourceTgt",
+						"CustomerKey derive(hash = md5(CustomerId, ",
+						"    FirstName, ",
+						"    LastName, ",
+						"    Company, ",
+						"    Address, ",
+						"    CustomerStage@City, ",
+						"    CustomerStage@State, ",
+						"    CustomerStage@Country, ",
+						"    PostalCode, ",
+						"    Phone, ",
+						"    Fax, ",
+						"    Email",
+						"),",
+						"          is_active = 'Y') ~> SourceHashActiveFlag",
+						"SourceHashActiveFlag alterRow(updateIf(CustomerId==CUSTOMER_ID&&hash!=HASH_VALUE),",
+						"     insertIf(iifNull(CUSTOMER_ID,0,CUSTOMER_ID)==0)) ~> RowChanges",
+						"joinSourceTgt keyGenerate(output(Customer_Key as long),",
+						"     startAt: 1L,",
+						"     stepValue: 1L) ~> CustomerKey",
+						"RowChanges sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     deletable:false,",
+						"     insertable:true,",
+						"     updateable:true,",
+						"     upsertable:false,",
+						"     keys:['CUSTOMER_ID'],",
+						"     format: 'table',",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     stageInsert: true,",
+						"     mapColumn(",
+						"          CUSTOMER_KEY = CustomerKey@Customer_Key,",
+						"          CUSTOMER_ID = CustomerId,",
+						"          FIRST_NAME = FirstName,",
+						"          LAST_NAME = LastName,",
+						"          COMPANY_NAME = Company,",
+						"          CITY = CustomerStage@City,",
+						"          STATE = CustomerStage@State,",
+						"          COUNTRY = CustomerStage@Country,",
+						"          ZIP_CODE = PostalCode,",
+						"          EMPLOYEE_ID = SupportRepId,",
+						"          SOURCE_ID = Created_By,",
+						"          DATE_TO_WAREHOUSE = Created_Dt,",
+						"          IS_ACTIVE = SourceHashActiveFlag@is_active,",
+						"          HASH_VALUE = hash",
+						"     )) ~> sinkCustomerDIM"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/chinook_ds_snowflake')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/df_load_GENRE_DIM')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "chinook_ds_snowflake",
+								"type": "DatasetReference"
+							},
+							"name": "GenreDIM"
+						},
+						{
+							"dataset": {
+								"referenceName": "chinook_ds_snowflake",
+								"type": "DatasetReference"
+							},
+							"name": "sourceGenreDIM"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "chinook_ds_snowflake",
+								"type": "DatasetReference"
+							},
+							"name": "sinkGenreDIM"
+						}
+					],
+					"transformations": [
+						{
+							"name": "joinSourceTgt"
+						},
+						{
+							"name": "GenreKey"
+						},
+						{
+							"name": "RowChanges"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          GenreId as decimal(38,0),",
+						"          Name as string,",
+						"          Created_By as string,",
+						"          Created_Dt as date",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'table') ~> GenreDIM",
+						"source(output(",
+						"          GENRE_KEY as decimal(10,0),",
+						"          GENRE_ID as decimal(10,0),",
+						"          NAME as string,",
+						"          SOURCE_ID as string,",
+						"          DATE_TO_WAREHOUSE as timestamp",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'table') ~> sourceGenreDIM",
+						"GenreDIM, sourceGenreDIM join(GenreId == GENRE_ID,",
+						"     joinType:'left',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> joinSourceTgt",
+						"joinSourceTgt keyGenerate(output(Genre_Key as long),",
+						"     startAt: 1L,",
+						"     stepValue: 1L) ~> GenreKey",
+						"GenreKey alterRow(updateIf(GenreId==GENRE_ID&&GenreDIM@Name!=sourceGenreDIM@NAME),",
+						"     insertIf(iifNull(GENRE_ID,0,GENRE_ID)==0)) ~> RowChanges",
+						"RowChanges sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     deletable:false,",
+						"     insertable:true,",
+						"     updateable:true,",
+						"     upsertable:false,",
+						"     keys:['GENRE_ID'],",
+						"     format: 'table',",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     stageInsert: true,",
+						"     mapColumn(",
+						"          GENRE_KEY = GenreKey@Genre_Key,",
+						"          GENRE_ID = GenreId,",
+						"          NAME = GenreDIM@Name,",
+						"          SOURCE_ID = Created_By,",
+						"          DATE_TO_WAREHOUSE = Created_Dt",
+						"     )) ~> sinkGenreDIM"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/chinook_ds_snowflake')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/df_load_INVOICELINE_DIM')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "chinook_ds_snowflake",
+								"type": "DatasetReference"
+							},
+							"name": "InvoiceLineDIM"
+						},
+						{
+							"dataset": {
+								"referenceName": "chinook_ds_snowflake",
+								"type": "DatasetReference"
+							},
+							"name": "sourceInvoiceLineDIM"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "chinook_ds_snowflake",
+								"type": "DatasetReference"
+							},
+							"name": "sinkInvoiceLimeDIM"
+						}
+					],
+					"transformations": [
+						{
+							"name": "joinSourceTgt"
+						},
+						{
+							"name": "InvoiceLineKey"
+						},
+						{
+							"name": "RowChanges"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          InvoiceLineId as decimal(38,0),",
+						"          InvoiceId as decimal(38,0),",
+						"          TrackId as decimal(38,0),",
+						"          UnitPrice as decimal(10,2),",
+						"          Quantity as decimal(38,0),",
+						"          Created_By as string,",
+						"          Created_Dt as date",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'table') ~> InvoiceLineDIM",
+						"source(output(",
+						"          INVOICELINE_KEY as decimal(10,0),",
+						"          INVOICELINE_ID as decimal(10,0),",
+						"          INVOICE_ID as decimal(10,0),",
+						"          TRACK_ID as decimal(38,0),",
+						"          UNIT_PRICE as decimal(10,2),",
+						"          QUANTITY as decimal(38,0),",
+						"          SOURCE_ID as string,",
+						"          DATE_TO_WAREHOUSE as timestamp",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'table') ~> sourceInvoiceLineDIM",
+						"InvoiceLineDIM, sourceInvoiceLineDIM join(InvoiceLineId == INVOICELINE_ID,",
+						"     joinType:'left',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> joinSourceTgt",
+						"joinSourceTgt keyGenerate(output(InvoiceLine_Key as long),",
+						"     startAt: 1L,",
+						"     stepValue: 1L) ~> InvoiceLineKey",
+						"InvoiceLineKey alterRow(updateIf(InvoiceLineId==INVOICELINE_ID&&InvoiceId==INVOICE_ID&&TrackId==TRACK_ID&&(UnitPrice!=UNIT_PRICE||InvoiceLineDIM@Quantity!=sourceInvoiceLineDIM@QUANTITY)),",
+						"     insertIf(iifNull(INVOICELINE_ID,0,INVOICELINE_ID)==0)) ~> RowChanges",
+						"RowChanges sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     deletable:false,",
+						"     insertable:true,",
+						"     updateable:true,",
+						"     upsertable:false,",
+						"     keys:['INVOICELINE_ID'],",
+						"     format: 'table',",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     stageInsert: true,",
+						"     mapColumn(",
+						"          INVOICELINE_KEY = InvoiceLineKey@InvoiceLine_Key,",
+						"          INVOICELINE_ID = InvoiceLineId,",
+						"          INVOICE_ID = InvoiceId,",
+						"          TRACK_ID = TrackId,",
+						"          UNIT_PRICE = UnitPrice,",
+						"          QUANTITY = InvoiceLineDIM@Quantity,",
+						"          SOURCE_ID = Created_By,",
+						"          DATE_TO_WAREHOUSE = Created_Dt",
+						"     )) ~> sinkInvoiceLimeDIM"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/chinook_ds_snowflake')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/df_load_INVOICE_DIM')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "chinook_ds_snowflake",
+								"type": "DatasetReference"
+							},
+							"name": "InvoiceDIM"
+						},
+						{
+							"dataset": {
+								"referenceName": "chinook_ds_snowflake",
+								"type": "DatasetReference"
+							},
+							"name": "sourceInvoiceDIM"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "chinook_ds_snowflake",
+								"type": "DatasetReference"
+							},
+							"name": "sinkInvoiceDIM"
+						}
+					],
+					"transformations": [
+						{
+							"name": "joinSourceTgt"
+						},
+						{
+							"name": "InvoiceKey"
+						},
+						{
+							"name": "RowChanges"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          InvoiceId as decimal(38,0),",
+						"          CustomerId as decimal(38,0),",
+						"          InvoiceDate as timestamp,",
+						"          BillingAddress as string,",
+						"          BillingCity as string,",
+						"          BillingState as string,",
+						"          BillingCountry as string,",
+						"          BillingPostalCode as string,",
+						"          Total as decimal(10,2),",
+						"          Created_By as string,",
+						"          Created_Dt as date",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'table') ~> InvoiceDIM",
+						"source(output(",
+						"          INVOICE_KEY as decimal(10,0),",
+						"          INVOICE_ID as decimal(10,0),",
+						"          CUSTOMER_ID as decimal(10,0),",
+						"          SALE_DATE as date,",
+						"          BILLING_ADDRESS as string,",
+						"          BILLING_CITY as string,",
+						"          BILLING_STATE as string,",
+						"          BILLING_COUNTRY as string,",
+						"          BILLING_POSTAL_CODE as string,",
+						"          TOTAL as decimal(10,2),",
+						"          SOURCE_ID as string,",
+						"          DATE_TO_WAREHOUSE as timestamp",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'table') ~> sourceInvoiceDIM",
+						"InvoiceDIM, sourceInvoiceDIM join(InvoiceId == INVOICE_ID,",
+						"     joinType:'left',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> joinSourceTgt",
+						"joinSourceTgt keyGenerate(output(Invoice_Key as long),",
+						"     startAt: 1L,",
+						"     stepValue: 1L) ~> InvoiceKey",
+						"InvoiceKey alterRow(updateIf(InvoiceId==InvoiceId&&CustomerId==CustomerId&&BillingAddress!=BILLING_ADDRESS&&BillingCity!=BILLING_CITY&&BillingState!=BILLING_STATE&&BillingCountry!=BILLING_COUNTRY&&BillingPostalCode!=BILLING_POSTAL_CODE&&InvoiceDIM@Total!=sourceInvoiceDIM@TOTAL),",
+						"     insertIf(iifNull(INVOICE_ID,0,INVOICE_ID)==0)) ~> RowChanges",
+						"RowChanges sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     deletable:false,",
+						"     insertable:true,",
+						"     updateable:true,",
+						"     upsertable:false,",
+						"     keys:['INVOICE_ID'],",
+						"     format: 'table',",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     stageInsert: true,",
+						"     mapColumn(",
+						"          INVOICE_KEY = InvoiceKey@Invoice_Key,",
+						"          INVOICE_ID = InvoiceId,",
+						"          CUSTOMER_ID = CustomerId,",
+						"          SALE_DATE = InvoiceDate,",
+						"          BILLING_ADDRESS = BillingAddress,",
+						"          BILLING_CITY = BillingCity,",
+						"          BILLING_STATE = BillingState,",
+						"          BILLING_COUNTRY = BillingCountry,",
+						"          BILLING_POSTAL_CODE = BillingPostalCode,",
+						"          TOTAL = InvoiceDIM@Total,",
+						"          SOURCE_ID = Created_By,",
+						"          DATE_TO_WAREHOUSE = Created_Dt",
+						"     )) ~> sinkInvoiceDIM"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/chinook_ds_snowflake')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/transform_source_parquet')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "chinook_ds_parquet",
+								"type": "DatasetReference"
+							},
+							"name": "SourceParquet"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "chinook_ds_snowflake",
+								"type": "DatasetReference"
+							},
+							"name": "SnowflakeSink"
+						}
+					],
+					"transformations": [
+						{
+							"name": "AddAuditColumns"
+						}
+					],
+					"scriptLines": [
+						"source(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'parquet') ~> SourceParquet",
+						"SourceParquet derive(Created_By = 'ADF_PIPELINE',",
+						"          Created_Dt = currentDate()) ~> AddAuditColumns",
+						"AddAuditColumns sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     deletable:false,",
+						"     insertable:true,",
+						"     updateable:false,",
+						"     upsertable:false,",
+						"     format: 'table',",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     stageInsert: true) ~> SnowflakeSink"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/chinook_ds_parquet')]",
+				"[concat(variables('factoryId'), '/datasets/chinook_ds_snowflake')]"
+			]
+		}
+	]
+}

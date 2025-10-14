@@ -1,0 +1,386 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "adfdemo-damg7370"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/load_GENRE_DIM_PL')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "df_load_GENRE_DIM",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "df_load_GENRE_DIM",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"GenreDIM": {
+										"schema_name": {
+											"value": "@pipeline().parameters.stage_schema",
+											"type": "Expression"
+										},
+										"table_name": {
+											"value": "@pipeline().parameters.stage_table",
+											"type": "Expression"
+										}
+									},
+									"sourceGenreDIM": {
+										"schema_name": {
+											"value": "@pipeline().parameters.wh_schema",
+											"type": "Expression"
+										},
+										"table_name": {
+											"value": "@pipeline().parameters.wh_table",
+											"type": "Expression"
+										}
+									},
+									"sinkGenreDIM": {
+										"schema_name": {
+											"value": "@pipeline().parameters.wh_schema",
+											"type": "Expression"
+										},
+										"table_name": {
+											"value": "@pipeline().parameters.wh_table",
+											"type": "Expression"
+										}
+									}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"stage_schema": {
+						"type": "String",
+						"defaultValue": "STAGE"
+					},
+					"stage_table": {
+						"type": "String",
+						"defaultValue": "GENRE"
+					},
+					"wh_schema": {
+						"type": "String",
+						"defaultValue": "DW"
+					},
+					"wh_table": {
+						"type": "String",
+						"defaultValue": "GENRE_DIM"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2025-10-13T19:19:07Z"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/load_INVOICELINE_DIM_PL')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "df_load_INVOICELINE_DIM",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "df_load_INVOICELINE_DIM",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"InvoiceLineDIM": {
+										"schema_name": {
+											"value": "@pipeline().parameters.stage_schema",
+											"type": "Expression"
+										},
+										"table_name": {
+											"value": "@pipeline().parameters.stage_table",
+											"type": "Expression"
+										}
+									},
+									"sourceInvoiceLineDIM": {
+										"schema_name": {
+											"value": "@pipeline().parameters.wh_schema",
+											"type": "Expression"
+										},
+										"table_name": {
+											"value": "@pipeline().parameters.wh_table",
+											"type": "Expression"
+										}
+									},
+									"sinkInvoiceLimeDIM": {
+										"schema_name": {
+											"value": "@pipeline().parameters.wh_schema",
+											"type": "Expression"
+										},
+										"table_name": {
+											"value": "@pipeline().parameters.wh_table",
+											"type": "Expression"
+										}
+									}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"stage_schema": {
+						"type": "String",
+						"defaultValue": "STAGE"
+					},
+					"stage_table": {
+						"type": "String",
+						"defaultValue": "INVOICELINE"
+					},
+					"wh_schema": {
+						"type": "String",
+						"defaultValue": "DW"
+					},
+					"wh_table": {
+						"type": "String",
+						"defaultValue": "INVOICELINE_DIM"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2025-10-13T21:38:35Z"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/load_INVOICE_DIM_PL')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "df_load_INVOICE_DIM",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "df_load_INVOICE_DIM",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"InvoiceDIM": {
+										"schema_name": {
+											"value": "@pipeline().parameters.stage_schema",
+											"type": "Expression"
+										},
+										"table_name": {
+											"value": "@pipeline().parameters.stage_table",
+											"type": "Expression"
+										}
+									},
+									"sourceInvoiceDIM": {
+										"schema_name": {
+											"value": "@pipeline().parameters.wh_schema",
+											"type": "Expression"
+										},
+										"table_name": {
+											"value": "@pipeline().parameters.wh_table",
+											"type": "Expression"
+										}
+									},
+									"sinkInvoiceDIM": {
+										"schema_name": {
+											"value": "@pipeline().parameters.wh_schema",
+											"type": "Expression"
+										},
+										"table_name": {
+											"value": "@pipeline().parameters.wh_table",
+											"type": "Expression"
+										}
+									}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"stage_schema": {
+						"type": "string",
+						"defaultValue": "STAGE"
+					},
+					"stage_table": {
+						"type": "string",
+						"defaultValue": "INVOICE"
+					},
+					"wh_schema": {
+						"type": "string",
+						"defaultValue": "DW"
+					},
+					"wh_table": {
+						"type": "string",
+						"defaultValue": "INVOICE_DIM"
+					},
+					"wh_date_table": {
+						"type": "String",
+						"defaultValue": "DATE_DIM"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2025-10-13T22:00:11Z"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/stage_Partquet_PL')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "ForEachSourceParquetFile",
+						"type": "ForEach",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@pipeline().parameters.table_names_array",
+								"type": "Expression"
+							},
+							"batchCount": 1,
+							"activities": [
+								{
+									"name": "df_parquet_to_snowflake_with_audit",
+									"type": "ExecuteDataFlow",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.00:10:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 60,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"dataflow": {
+											"referenceName": "transform_source_parquet",
+											"type": "DataFlowReference",
+											"parameters": {},
+											"datasetParameters": {
+												"SourceParquet": {
+													"container_name": "stagedata",
+													"directory_name": {
+														"value": "@pipeline().parameters.folder_name",
+														"type": "Expression"
+													},
+													"file_name": {
+														"value": "@concat(\n    item(),\n    '.parquet'\n)",
+														"type": "Expression"
+													}
+												},
+												"SnowflakeSink": {
+													"schema_name": "STAGE",
+													"table_name": {
+														"value": "@toUpper(\n    item()\n)",
+														"type": "Expression"
+													}
+												}
+											}
+										},
+										"staging": {},
+										"compute": {
+											"coreCount": 8,
+											"computeType": "General"
+										},
+										"traceLevel": "Fine"
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"folder_name": {
+						"type": "String",
+						"defaultValue": "chinook"
+					},
+					"table_names_array": {
+						"type": "array",
+						"defaultValue": [
+							"Album",
+							"Artist",
+							"Customer",
+							"Genre",
+							"Invoice",
+							"InvoiceLine"
+						]
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2025-10-12T19:47:34Z"
+			},
+			"dependsOn": []
+		}
+	]
+}
